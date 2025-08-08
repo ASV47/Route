@@ -1,0 +1,72 @@
+- name: Configure Apache2, PHP, MySQL, and UFW Firewall
+  hosts: localhost
+  become: true
+  vars:
+    ufw_default_incoming_policy: deny
+    ufw_default_outgoing_policy: allow
+    ufw_rules:
+    - port: '22'
+      proto: tcp
+      rule: allow
+    - port: '80'
+      proto: tcp
+      rule: allow
+    - port: '443'
+      proto: tcp
+      rule: allow
+    apache_remove_default_vhost: true
+    apache_global_vhost_settings: 'DirectoryIndex index.php index.html index.htm
+
+      '
+    php_enable_webserver: true
+    php_webserver_daemon: apache2
+    php_packages:
+    - php
+    - php-cli
+    - php-common
+    - libapache2-mod-php
+    - php-mysql
+    mysql_root_password: 01206694832awzSd
+    mysql_users:
+    - name: yasser11
+      host: localhost
+      password: 01206694832awzSd
+      priv: '*.*:ALL'
+    mysql_databases:
+    - name: webdb
+      encoding: utf8
+      collation: utf8_general_ci
+    mysql_secure_installation: true
+  roles:
+  - geerlingguy.apache
+  - geerlingguy.php
+  - geerlingguy.mysql
+  tasks:
+  - name: Copy index.php to web root
+    ansible.builtin.copy:
+      dest: /var/www/html/index.php
+      owner: www-data
+      group: www-data
+      mode: '0644'
+      content: <?php echo 'Hello from index.php'; ?>
+    notify: Restart apache
+  - name: Copy db_test.php to web root
+    ansible.builtin.copy:
+      content: "<?php\n$servername = \"localhost\";\n$username = \"yasser11\";\n$password\
+        \ = \"01206694832awzSd\"; \n$dbname = \"webdb\";\n\n// Create connection\n\
+        $conn = new mysqli($servername, $username, $password, $dbname);\n\n// Check\
+        \ connection\nif ($conn->connect_error) {\n    die(\"Connection failed: \"\
+        \ . $conn->connect_error);\n}\necho \"Connected to MySQL successfully!\";\n\
+        \n$conn->close();\n?>\n"
+      dest: /var/www/html/db_test.php
+      owner: www-data
+      group: www-data
+      mode: '0644'
+    notify: Restart apache
+  handlers:
+  - name: Restart apache
+    ansible.builtin.service:
+      name: apache2
+      state: restarted
+    listen: Restart apache
+  connection: local
