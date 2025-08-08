@@ -1,0 +1,102 @@
+#!/bin/bash
+
+SOURCE_DIR="/var/www"
+BACKUP_DIR="/backups"
+RETENTION_DAYS=7
+LOG_FILE="/var/log/backup_script.log"
+LOG_RETENTION_COUNT=5
+RECIPIENT_EMAIL="ahmedmohammedmahermakled@gmail.com"
+log_message() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
+}
+
+send_alert() {
+    local SUBJECT="Backup Script Failure on $(hostname): $1"
+    local BODY="The daily backup script encountered an error: $1.
+Please check the logs in $LOG_FILE for more details.
+
+Script executed on: $(date)
+Hostname: $(hostname)
+Source Directory: $SOURCE_DIR
+Backup Directory: $BACKUP_DIR"
+
+    echo "$BODY" | mail -s "$SUBJECT" "$RECIPIENT_EMAIL"
+    log_message "ALERT SENT: $SUBJECT to $RECIPIENT_EMAIL"
+}
+
+rotate_logs() {
+    log_message "Performing log rotation..."
+    if [ -f "$LOG_FILE" ]; then
+        if [ -f "${LOG_FILE}.${LOG_RETENTION_COUNT}" ]; then
+            rm "${LOG_FILE}.${LOG_RETENTION_COUNT}"
+            if [ $? -ne 0 ]; then
+                log_message "WARNING: Failed to remove oldest log file: ${LOG_FILE}.${LOG_RETENTION_COUNT}"
+            fi
+        fi
+        for i in $(seq $((LOG_RETENTION_COUNT-1)) -1 1); do
+            if [ -f "${LOG_FILE}.${i}" ]; then
+                mv "${LOG_FILE}.${i}" "${LOG_FILE}.$((i+1))"
+                if [ $? -ne 0 ]; then
+                    log_message "WARNING: Failed to move log file: ${LOG_FILE}.${i}"
+                fi
+            fi
+        done
+        mv "$LOG_FILE" "${LOG_FILE}.1"
+        if [ $? -ne 0 ]; then
+            log_message "WARNING: Failed to move current log file to ${LOG_FILE}.1"
+        fi
+    fi
+
+    touch "$LOG_FILE"
+    if [ $? -ne 0 ]; then
+        send_alert "Failed to create new log file: $LOG_FILE"
+        exit 1 
+    fi
+    log_message "New log file created: $LOG_FILE"
+}
+
+log_message "Starting daily system backup script..."
+
+
+
+
+log_message "Checking backup directory: $BACKUP_DIR"
+if [ ! -d "$BACKUP_DIR" ]; then
+    mkdir -p "$BACKUP_DIR"
+    if [ $? -ne 0 ]; then
+        send_alert "Failed to create backup directory $BACKUP_DIR. Check permissions."
+        exit 1
+    fi
+    log_message "Created backup directory: $BACKUP_DIR"
+fi
+
+
+TIMESTAMP=$(date '+%Y%m%d_%H%M%S')
+BACKUP_FILENAME="system_backup_${TIMESTAMP}.tar.gz"
+FULL_BACKUP_PATH="${BACKUP_DIR}/${BACKUP_FILENAME}"
+
+log_message "Attempting to back up $SOURCE_DIR to $FULL_BACKUP_PATH..."
+
+tar -czf "$FULL_BACKUP_PATH" "$SOURCE_DIR"
+if [ $? -ne 0 ]; then
+    send_alert "Failed to create backup archive for $SOURCE_DIR. Check source path or permissions."
+    exit 1
+fi
+log_message "Backup created successfully: $FULL_BACKUP_PATH"
+
+
+log_message "Cleaning up old backups (retaining last $RETENTION_DAYS days)..."
+
+find "$BACKUP_DIR" -type f -name "system_backup_*.tar.gz" -mtime +$RETENTION_DAYS -delete
+if [ $? -ne 0 ]; then
+    
+    log_message "WARNING: Failed to clean up old backups in $BACKUP_DIR. Check permissions or if old files exist."
+    send_alert "Failed to clean up old backups in $BACKUP_DIR. Backup was created, but old files might not be removed."
+fi
+log_message "Old backups cleaned up."
+
+log_message "Daily system backup script completed successfully."
+   
+   
+   
+
