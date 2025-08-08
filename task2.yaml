@@ -1,0 +1,28 @@
+- name: Install packages based on distribution
+  become: true
+  gather_facts: true
+  hosts: localhost
+
+  tasks:
+    - name: Install packages on CentOS or RedHat
+      ansible.builtin.yum:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - htop
+        - iftop
+        - net-tools
+      when: >
+        ansible_facts['distribution'] == "CentOS"
+        or ansible_facts['distribution'] == "RedHat"
+
+    - name: Install packages on Ubuntu
+      ansible.builtin.apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      loop:
+        - htop
+        - iftop
+        - net-tools
+      when: ansible_facts['distribution'] == "Ubuntu"

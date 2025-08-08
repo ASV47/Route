@@ -1,0 +1,20 @@
+---
+- name: Ensure /var/log/myapp exists and debug on Ubuntu
+  hosts: localhost
+  become: true
+  gather_facts: true
+
+  tasks:
+
+    - name: Ensure log directory exists
+      ansible.builtin.file:
+        path: /var/log/myapp
+        state: directory
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Debug message for Ubuntu systems
+      ansible.builtin.debug:
+        msg: "Log directory is in place!"
+      when: ansible_facts['distribution'] == "Ubuntu"

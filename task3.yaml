@@ -1,0 +1,33 @@
+---
+- name: Deploy nginx config only if it exists locally
+  hosts: localhost
+  become: true
+  gather_facts: false
+
+  vars:
+    local_nginx_path: files/nginx.conf
+    remote_nginx_path: /etc/nginx/nginx.conf
+
+  tasks:
+    - name: Check if nginx.conf exists locally
+      ansible.builtin.stat:
+        path: "{{ local_nginx_path }}"
+      register: nginx_config_found
+      delegate_to: localhost
+      run_once: true
+
+    - name: Copy nginx config file to remote if found locally
+      ansible.builtin.copy:
+        src: "{{ local_nginx_path }}"
+        dest: "{{ remote_nginx_path }}"
+        owner: root
+        group: root
+        mode: '0644'
+      when: nginx_config_found.stat.exists
+      notify: Restart nginx
+
+  handlers:
+    - name: Restart nginx
+      ansible.builtin.service:
+        name: nginx
+        state: restarted

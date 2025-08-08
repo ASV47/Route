@@ -1,0 +1,19 @@
+- name: Create users on RedHat 7+ or any Ubuntu
+  hosts: localhost
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Add dev and qa users on RedHat 7+ or Ubuntu
+      when: >
+        (ansible_facts['os_family'] == "RedHat" and
+         (ansible_facts['distribution_major_version'] | int) >= 7)
+        or
+        (ansible_facts['os_family'] == "Debian" and
+         ansible_facts['distribution'] == "Ubuntu")
+      loop:
+        - devuser
+        - qauser
+      ansible.builtin.user:
+        name: "{{ item }}"
+        state: present

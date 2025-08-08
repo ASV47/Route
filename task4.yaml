@@ -1,0 +1,33 @@
+---
+- name: Install and enable firewalld smartly
+  hosts: localhost
+  become: true
+  gather_facts: true
+
+  tasks:
+
+    - name: Install firewalld on Ubuntu
+      ansible.builtin.apt:
+        name: firewalld
+        state: present
+        update_cache: yes
+      when: ansible_facts['distribution'] == "Ubuntu"
+
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Enable and start firewalld only if service exists
+      ansible.builtin.service:
+        name: firewalld
+        state: started
+        enabled: true
+      when: >
+        (
+          (ansible_facts['distribution'] == "RedHat" and (ansible_facts['distribution_major_version'] | int) >= 7)
+          or
+          (ansible_facts['distribution'] == "CentOS" and (ansible_facts['distribution_major_version'] | int) >= 8)
+          or
+          (ansible_facts['distribution'] == "Ubuntu")
+        )
+        and
+        ('firewalld.service' in ansible_facts.services)
